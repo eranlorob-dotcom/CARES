@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cartographie de l'axe AACS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Young+Serif&display=swap">
+<style>
+/* Layout : en-tête sobre, bandeau de synthèse, quatre vues à onglets (carte systémique, ports d'attache, thèmes, répertoire), puis constats */
+:root{
+  --bg:#f6f8f6; --surface:#ffffff; --line:#d8e0dc; --fg:#17231f; --muted:#5a6964;
+  --accent:#1f6f5c; --accent-soft:#e1efe9;
+  --land:#e6ece8; --land-qc:#d3e0d9; --water:#f6f8f6;
+  --c-env:#2f7d4f; --c-ali:#a8641e; --c-gou:#2d5f9a; --c-ser:#8a3f6b;
+  --c-tra:#6a5b2e; --c-cli:#b1483f; --c-par:#4f7c86; --c-out:#5e4f9a;
+  --k-f:#b1483f; --k-s:#2d5f9a; --k-l:#1f6f5c; --k-r:#a8641e;
+  --display:"Young Serif",Georgia,"Times New Roman",serif;
+  --body:"Hanken Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#111816; --surface:#18221f; --line:#2b3a35; --fg:#e4ece8; --muted:#9aaba5;
+  --accent:#6cc3a6; --accent-soft:#1d3029;
+  --land:#1c2622; --land-qc:#24332d; --water:#111816;
+  --c-env:#6cc58e; --c-ali:#e39a55; --c-gou:#7aa8e3; --c-ser:#d48ab6;
+  --c-tra:#c6b47a; --c-cli:#ec8a80; --c-par:#86bcc7; --c-out:#a99ae6;
+  --k-f:#ec8a80; --k-s:#7aa8e3; --k-l:#6cc3a6; --k-r:#e39a55; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111816; --surface:#18221f; --line:#2b3a35; --fg:#e4ece8; --muted:#9aaba5;
+  --accent:#6cc3a6; --accent-soft:#1d3029;
+  --land:#1c2622; --land-qc:#24332d; --water:#111816;
+  --c-env:#6cc58e; --c-ali:#e39a55; --c-gou:#7aa8e3; --c-ser:#d48ab6;
+  --c-tra:#c6b47a; --c-cli:#ec8a80; --c-par:#86bcc7; --c-out:#a99ae6;
+  --k-f:#ec8a80; --k-s:#7aa8e3; --k-l:#6cc3a6; --k-r:#e39a55; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.55}
+.wrap{max-width:1100px;margin:0 auto;padding-inline:20px;padding-block:28px 56px;display:grid;gap:28px}
+h1,h2{font-family:var(--display);font-weight:400;text-wrap:balance;margin:0;line-height:1.15}
+h1{font-size:clamp(1.7rem,4vw,2.4rem)}
+h2{font-size:1.35rem}
+h3{margin:0;font-size:1rem}
+.eyebrow{text-transform:uppercase;letter-spacing:.08em;font-size:.74rem;color:var(--muted);font-weight:600}
+.lede{max-width:70ch;color:var(--muted);margin:.5rem 0 0}
+.note{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:12px 16px;font-size:.9rem;color:var(--muted);max-width:82ch}
+.note strong{color:var(--fg)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.stat{padding:12px 0;border-top:2px solid var(--fg)}
+.stat b{display:block;font-family:var(--display);font-size:1.9rem;font-weight:400;font-variant-numeric:tabular-nums}
+.stat span{color:var(--muted);font-size:.86rem}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--line)}
+.tabs button{font:inherit;font-weight:600;background:none;border:0;border-bottom:3px solid transparent;color:var(--muted);padding:8px 12px;cursor:pointer}
+.tabs button[aria-selected="true"]{color:var(--fg);border-color:var(--accent)}
+button:focus-visible,select:focus-visible,input:focus-visible,.node:focus-visible,.port:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.count{color:var(--muted);font-size:.85rem}
+
+.sys{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start}
+@media (max-width:900px){.sys{grid-template-columns:1fr}}
+.svgwrap{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow-x:auto}
+.svgwrap svg{display:block;width:100%;min-width:760px;height:auto}
+.node,.port{cursor:pointer}
+.node rect{fill:var(--surface);stroke:var(--nc);stroke-width:1.5}
+.node text{fill:var(--fg);font-family:var(--body);font-size:12.5px}
+.node .num{fill:var(--muted);font-size:11px;font-variant-numeric:tabular-nums}
+.node.on rect{fill:var(--nc);fill-opacity:.16;stroke-width:2.5}
+.node.dim,.port.dim{opacity:.3}
+.edge{fill:none;stroke:var(--muted);transition:opacity .2s}
+.edge.dim{opacity:.06}
+.edge.on{stroke:var(--accent)}
+.colhead{fill:var(--muted);font-size:11px;font-weight:700;letter-spacing:.08em}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:grid;gap:12px;min-width:0}
+.panel h3{font-family:var(--display);font-weight:400;font-size:1.15rem}
+.panel .sub{color:var(--muted);font-size:.86rem;margin:0}
+.people{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:inherit;font-size:.84rem;border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:6px;padding:3px 8px;cursor:pointer}
+.chip.sec{color:var(--muted);border-style:dashed}
+.links{display:grid;gap:6px;margin:0;padding:0;list-style:none}
+.links li{display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid var(--line);padding-block:4px;font-size:.88rem}
+.links li span:last-child{color:var(--muted);text-align:right}
+.reset{font:inherit;font-size:.82rem;background:none;border:1px solid var(--line);color:var(--muted);border-radius:6px;padding:3px 8px;cursor:pointer;justify-self:start}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.8rem;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;border:2px solid var(--c);margin-right:5px;vertical-align:-1px}
+.bridges{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px}
+.bridge{border-top:2px solid var(--accent);padding-top:8px;font-size:.88rem}
+.bridge b{display:block}
+.bridge span{color:var(--muted)}
+
+/* Ports d'attache */
+.land{fill:var(--land);stroke:var(--line);stroke-width:.8}
+.land.qc{fill:var(--land-qc)}
+.port circle{fill:var(--accent);fill-opacity:.3;stroke:var(--accent);stroke-width:1.6}
+.port.on circle{fill-opacity:.6;stroke-width:2.6}
+.port text{fill:var(--fg);font-family:var(--body);pointer-events:none}
+.port .lbl{font-size:13px;font-weight:600;paint-order:stroke;stroke:var(--surface);stroke-width:3px}
+.port .n{font-size:12px;font-weight:700;font-variant-numeric:tabular-nums}
+.inst{display:grid;gap:4px}
+.inst b{font-size:.9rem}
+
+.clusters{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.cl{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:grid;gap:10px;align-content:start;min-width:0}
+.cl header{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.cl h3{display:flex;align-items:center;gap:8px}
+.dot{width:10px;height:10px;border-radius:50%;flex:none;background:var(--c)}
+.cl .n{font-variant-numeric:tabular-nums;color:var(--muted);font-size:.85rem}
+.cl p{margin:0;color:var(--muted);font-size:.88rem}
+.detail{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:8px;padding:14px 16px;display:grid;gap:4px}
+.detail h4{margin:0;font-size:1.05rem}
+.detail .meta{color:var(--muted);font-size:.86rem}
+
+.filters{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+.filters label{display:grid;gap:4px;font-size:.78rem;color:var(--muted);font-weight:600}
+select,input{font:inherit;font-size:.9rem;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--fg)}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:760px;font-size:.86rem}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:.74rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);background:var(--bg)}
+td.kw{color:var(--muted);max-width:42ch}
+.tag{display:inline-flex;align-items:center;gap:5px;font-size:.76rem;margin:0 6px 2px 0;white-space:nowrap}
+.tag i{width:8px;height:8px;border-radius:50%;background:var(--c)}
+.gaps{display:grid;gap:8px;max-width:82ch;padding-left:1.1rem;margin:0}
+[hidden]{display:none!important}
+.view{display:grid;gap:16px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Réseau CARES · Axe Anticiper et s'adapter aux changements systémiques</div>
+    <h1>Qui fait quoi dans l'axe AACS</h1>
+    <p class="lede">Une lecture systémique et territoriale des membres inscrits à l'axe : quelles forces de changement ils étudient, quels systèmes ils regardent, sur quels leviers ils travaillent, vers quelles retombées, et d'où ils travaillent. Les rattachements sont une proposition, construite à partir des mots-clés que chaque membre a déclarés dans le bottin.</p>
+  </header>
+
+  <div class="note"><strong>Source.</strong> Bottin des membres du réseau CARES, consulté le 9 octobre 2026. Sur 233 membres, <span id="n-axe">56</span> sont inscrits à l'axe Anticiper et s'adapter aux changements systémiques.</div>
+
+  <section class="stats" aria-label="Synthèse">
+    <div class="stat"><b id="s-n">0</b><span>membres de l'axe</span></div>
+    <div class="stat"><b id="s-inst">0</b><span>établissements d'attache</span></div>
+    <div class="stat"><b id="s-pairs">0</b><span>paires qui partagent au moins deux éléments du système</span></div>
+    <div class="stat"><b id="s-prac">0</b><span>cliniciens ou milieux de pratique</span></div>
+  </section>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" id="t-sys" aria-selected="true" data-view="sys">Carte systémique</button>
+    <button role="tab" id="t-ports" aria-selected="false" data-view="ports">Ports d'attache</button>
+    <button role="tab" id="t-themes" aria-selected="false" data-view="themes">Thèmes</button>
+    <button role="tab" id="t-rep" aria-selected="false" data-view="rep">Répertoire</button>
+  </nav>
+
+  <section id="v-sys" class="view" role="tabpanel" aria-labelledby="t-sys">
+    <div class="legend">
+      <span><i style="--c:var(--k-f)"></i>Forces de changement</span>
+      <span><i style="--c:var(--k-s)"></i>Systèmes touchés</span>
+      <span><i style="--c:var(--k-l)"></i>Leviers d'adaptation</span>
+      <span><i style="--c:var(--k-r)"></i>Retombées visées</span>
+      <span>Épaisseur d'un lien : nombre de membres qui travaillent sur les deux éléments</span>
+    </div>
+    <div class="sys">
+      <div class="svgwrap"><svg id="sysmap" viewBox="0 0 1000 560" role="img" aria-label="Carte systémique de l'axe : forces, systèmes, leviers et retombées reliés par les membres"></svg></div>
+      <aside class="panel" id="panel" aria-live="polite"></aside>
+    </div>
+    <div style="display:grid;gap:10px">
+      <h3>Ponts les plus forts entre membres</h3>
+      <p class="count" style="margin:0">Paires de membres d'établissements différents qui partagent le plus d'éléments du système. Ce sont des collaborations naturelles à proposer.</p>
+      <div class="bridges" id="bridges"></div>
+    </div>
+  </section>
+
+  <section id="v-ports" class="view" role="tabpanel" aria-labelledby="t-ports" hidden>
+    <div class="sys">
+      <div class="svgwrap"><svg id="portmap" viewBox="0 0 1000 525" role="img" aria-label="Carte du Québec méridional montrant le nombre de membres de l'axe par ville d'attache"></svg></div>
+      <aside class="panel" id="ppanel" aria-live="polite"></aside>
+    </div>
+    <p class="count" style="margin:0">Chaque cercle marque la ville du campus principal de l'établissement déclaré dans le bottin; sa surface suit le nombre de membres. Plusieurs établissements comptent d'autres campus (INRS, ENAP, UQAT, UQO, TÉLUQ) : un membre peut donc travailler ailleurs que là où il est placé.</p>
+  </section>
+
+  <section id="v-themes" class="view" role="tabpanel" aria-labelledby="t-themes" hidden>
+    <p class="count">Chaque membre apparaît dans son thème principal (trait plein) et, au besoin, en pointillé dans ses thèmes secondaires. Cliquez un nom pour voir sa fiche.</p>
+    <div id="detail" class="detail"><h4>Choisissez un membre</h4><div class="meta">Sa fiche s'affiche ici : établissement, statut, thèmes et mots-clés.</div></div>
+    <div class="clusters" id="clusters"></div>
+  </section>
+
+  <section id="v-rep" class="view" role="tabpanel" aria-labelledby="t-rep" hidden>
+    <div class="filters">
+      <label for="f-q">Recherche<input id="f-q" type="search" placeholder="Nom, mot-clé, établissement"></label>
+      <label for="f-th">Thème<select id="f-th"><option value="">Tous</option></select></label>
+      <label for="f-node">Élément du système<select id="f-node"><option value="">Tous</option></select></label>
+      <label for="f-city">Ville d'attache<select id="f-city"><option value="">Toutes</option></select></label>
+      <span class="count" id="f-count"></span>
+    </div>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Membre</th><th>Établissement</th><th>Statut</th><th>Thèmes</th><th>Axes</th><th>Mots-clés déclarés (extraits)</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table></div>
+  </section>
+
+  <section style="display:grid;gap:10px">
+    <h2>Ce que la cartographie laisse voir</h2>
+    <ul class="gaps">
+      <li>Le système de soins et services concentre le plus grand nombre de membres. Les systèmes agroalimentaire et du travail sont portés par des groupes de cinq ou six membres.</li>
+      <li>L'exploitation des ressources naturelles, que l'objectif 1 met au premier plan, n'est portée que par deux membres. La recomposition économique et les chaînes d'approvisionnement, aussi nommées dans le texte de l'axe, par trois.</li>
+      <li>La participation citoyenne et la collaboration intersectorielle relient des membres venus de systèmes différents (soins, territoire, écosystèmes). Ce sont les leviers qui tissent le plus l'axe.</li>
+      <li>Québec et Montréal regroupent 33 des 56 membres. Rimouski est le pôle le plus dense hors des grands centres. L'Abitibi-Témiscamingue et le Saguenay comptent deux membres chacun.</li>
+      <li>Aucun port d'attache en Côte-Nord, Gaspésie, Nord-du-Québec, Laurentides ou Lanaudière. Ces territoires peuvent être présents dans les projets, mais pas dans l'ancrage institutionnel de l'axe.</li>
+      <li>Huit membres viennent de la pratique (cliniciens, milieux de pratique, établissement gouvernemental). Les savoirs expérientiels reposent sur un petit groupe de chercheuses.</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+const MAP={"qc": "M1019,69L1052,79L1079,91L1086,100L1094,104L1097,108L1117,114L1122,132L1122,137L1121,139L1095,139L1082,134L1043,124L1032,116L1013,110L1011,100L997,87L973,77L966,70L964,73L956,67L960,63L975,59L992,65L1019,69ZM572,326L567,334L553,339L567,325L571,324L572,326ZM1122,-74L1122,-82L1122,-75L1122,-78L1122,-75L1122,-79L1122,-73L1122,-76L1122,-64L1122,-61L1122,-66L1122,-61L1122,-64L1122,-58L1122,-61L1122,-57L1122,-59L1122,-53L1122,-50L1122,-44L1122,-40L1122,-36L1122,-41L1122,-38L1122,-29L1122,-26L1122,-23L1122,-21L1122,-16L1122,-13L1122,-16L1122,-20L1122,-25L1122,-18L1122,-12L1122,-14L1122,-10L1122,-6L1122,-3L1122,11L1122,15L1122,21L1122,25L1122,31L1122,36L1122,34L1122,28L1122,33L1122,30L1122,34L1122,31L1122,35L1122,32L1122,34L1122,31L1122,37L1122,34L1122,37L1122,46L1122,40L1122,37L1122,42L1119,35L1097,33L1086,28L1083,31L1065,29L1066,26L1061,28L1051,28L1049,26L1039,28L1039,31L1027,32L1025,35L1019,31L1012,32L999,26L978,31L960,25L935,30L932,28L915,28L911,25L883,31L869,28L862,35L860,32L860,37L851,35L843,37L839,30L833,36L834,39L840,39L838,42L827,38L828,41L821,51L807,57L807,62L803,71L800,68L796,72L794,77L795,83L793,86L790,91L791,102L781,116L770,115L756,120L746,118L737,120L734,127L726,127L732,130L732,135L724,136L719,140L717,140L721,133L717,128L719,134L707,141L705,149L701,150L705,153L696,153L686,162L685,165L679,166L674,182L669,183L665,194L657,208L648,214L641,223L634,221L624,211L613,211L599,202L580,201L576,196L562,194L557,196L563,195L574,200L568,203L569,207L575,204L594,204L605,209L611,214L626,215L630,223L638,226L626,256L613,266L609,274L608,281L591,287L587,301L578,317L563,326L549,340L543,350L552,340L561,340L589,326L601,312L610,298L619,291L621,282L628,277L650,251L649,248L655,237L662,234L694,203L700,202L711,195L716,187L740,173L746,173L771,158L801,148L827,134L852,127L883,124L891,121L930,126L952,135L973,153L978,167L970,161L954,156L959,160L955,161L963,162L965,164L962,165L967,167L978,179L971,181L971,185L976,188L969,194L969,198L944,205L946,207L941,218L929,219L930,223L910,234L899,236L896,231L877,225L872,220L872,216L861,227L848,225L850,227L848,230L837,225L833,231L814,236L808,239L808,245L802,242L793,246L785,245L783,250L768,241L768,236L737,235L737,242L721,242L721,267L721,276L709,288L681,299L680,288L669,285L623,354L621,365L619,378L610,386L605,400L608,404L603,411L605,412L603,420L607,422L606,426L597,436L598,442L588,448L578,461L583,472L573,469L571,472L572,475L571,482L568,487L563,477L556,480L552,486L543,481L537,486L534,486L536,489L535,497L530,502L530,506L506,507L467,507L428,507L418,507L377,508L333,508L347,501L352,494L358,489L349,479L354,456L339,450L325,449L289,460L265,474L251,461L245,460L236,466L219,457L215,454L213,443L208,438L207,429L201,427L200,434L195,436L183,428L178,422L175,414L161,403L154,400L91,386L88,380L76,370L64,343L55,332L46,316L46,302L38,286L42,275L42,181L41,166L40,-32L51,-16L52,-12L53,-14L50,-21L47,-25L40,-35L40,-54L40,-78L42,-79L40,-86L52,-96L59,-94L56,-87L56,-84L65,-85L72,-79L77,-62L76,-56L83,-51L78,-57L79,-64L84,-68L80,-72L88,-80L92,-80L84,-83L85,-92L77,-96L77,-99L71,-107L83,-112L80,-121L89,-124L92,-128L91,-132L95,-132L95,-135L99,-137L101,-143L100,-148L109,-148L107,-151L100,-152L104,-159L101,-166L103,-169L100,-171L101,-173L88,-178L92,-181L90,-181L87,-181L84,-181L87,-181L82,-181L90,-181L87,-181L92,-181L82,-181L79,-181L86,-181L84,-181L74,-181L78,-181L75,-181L78,-181L76,-181L69,-181L66,-181L72,-181L76,-181L71,-181L78,-181L74,-181L69,-181L73,-181L71,-181L64,-181L71,-181L79,-181L69,-181L67,-181L74,-181L65,-181L71,-181L67,-181L70,-181L67,-181L73,-181L75,-181L68,-181L65,-181L56,-181L62,-181L66,-181L70,-181L61,-181L50,-181L56,-181L49,-181L46,-181L42,-181L46,-181L43,-181L40,-181L36,-181L41,-181L38,-181L35,-181L32,-181L27,-181L34,-181L58,-181L75,-181L82,-181L114,-181L149,-181L155,-181L182,-181L190,-181L184,-181L205,-181L207,-181L216,-181L218,-181L223,-181L216,-181L207,-181L186,-181L165,-181L168,-181L158,-181L133,-181L130,-181L127,-181L118,-181L110,-181L114,-181L111,-181L105,-181L99,-181L106,-181L101,-181L104,-181L101,-181L107,-181L112,-181L119,-181L115,-181L118,-181L122,-181L126,-181L129,-181L145,-181L141,-181L148,-181L153,-181L148,-181L139,-181L143,-181L151,-181L146,-181L150,-181L154,-181L160,-181L166,-181L176,-181L168,-181L162,-181L165,-181L163,-181L166,-181L169,-181L177,-181L173,-181L169,-181L177,-181L181,-181L176,-181L183,-181L191,-181L198,-181L204,-181L208,-181L205,-181L210,-181L200,-181L183,-181L189,-181L179,-181L176,-181L173,-181L169,-181L157,-181L161,-181L170,-181L162,-181L166,-181L160,-181L157,-181L150,-181L160,-181L170,-181L162,-181L154,-181L144,-181L158,-181L150,-181L164,-181L141,-181L136,-181L140,-181L123,-181L137,-181L146,-181L153,-181L149,-181L147,-181L152,-181L161,-181L154,-181L157,-181L166,-181L157,-181L159,-181L152,-181L147,-181L140,-181L134,-181L129,-181L126,-181L133,-181L152,-181L165,-181L170,-181L172,-181L192,-181L198,-181L247,-181L250,-181L259,-181L278,-181L281,-181L266,-181L263,-181L267,-181L287,-181L297,-181L308,-181L313,-181L321,-181L331,-181L344,-181L332,-181L353,-181L361,-181L378,-181L386,-181L398,-181L405,-181L415,-181L426,-181L435,-181L445,-181L443,-181L452,-181L455,-181L462,-181L459,-181L452,-181L459,-181L464,-181L461,-181L464,-181L487,-181L492,-181L488,-181L491,-181L496,-181L501,-181L495,-181L486,-181L482,-181L487,-181L495,-181L501,-181L504,-181L520,-181L526,-181L509,-181L513,-181L515,-181L507,-181L525,-181L519,-181L511,-181L520,-181L517,-181L524,-181L530,-181L532,-181L538,-181L548,-181L550,-181L560,-181L565,-181L572,-181L575,-181L582,-181L589,-181L596,-181L600,-181L607,-181L613,-181L615,-181L612,-181L616,-181L613,-181L618,-181L626,-181L631,-181L626,-181L637,-181L643,-181L646,-181L652,-181L657,-181L661,-181L639,-181L643,-181L633,-181L637,-181L646,-181L643,-181L647,-181L639,-181L632,-181L636,-181L602,-181L588,-181L559,-181L587,-181L608,-181L618,-181L639,-181L649,-181L646,-181L650,-181L643,-181L651,-181L648,-181L641,-181L637,-181L640,-181L644,-181L637,-181L644,-181L658,-181L661,-181L668,-181L665,-181L660,-181L657,-181L654,-181L650,-181L652,-181L655,-181L662,-181L656,-181L652,-181L655,-181L651,-181L642,-181L639,-181L642,-181L640,-181L637,-181L630,-181L634,-181L628,-181L607,-181L620,-181L627,-181L634,-181L629,-181L633,-181L640,-181L644,-181L652,-181L662,-181L675,-181L690,-181L697,-181L720,-181L724,-181L727,-181L732,-181L725,-181L715,-181L685,-181L671,-181L660,-181L686,-181L719,-181L725,-181L730,-181L734,-181L736,-181L742,-181L746,-181L750,-181L753,-181L750,-181L738,-181L743,-181L747,-181L752,-181L756,-181L760,-181L764,-181L762,-181L766,-181L762,-181L766,-181L776,-181L782,-181L795,-181L799,-181L804,-181L808,-181L812,-181L817,-181L828,-181L825,-181L828,-181L830,-181L838,-181L845,-181L859,-181L861,-181L866,-181L870,-181L865,-181L860,-181L863,-181L868,-181L871,-181L867,-181L872,-181L876,-181L870,-181L864,-181L860,-181L864,-181L868,-181L878,-181L866,-181L875,-181L885,-181L878,-181L882,-181L879,-181L887,-181L896,-181L891,-181L907,-181L894,-181L888,-181L883,-181L886,-181L891,-181L897,-181L892,-181L905,-181L900,-181L903,-181L897,-181L894,-181L915,-181L919,-181L928,-181L913,-181L902,-181L894,-181L898,-181L904,-181L906,-181L918,-181L928,-181L914,-181L919,-181L914,-181L918,-181L923,-181L919,-181L923,-181L919,-181L922,-181L925,-181L928,-181L930,-181L935,-181L930,-181L935,-181L949,-181L955,-181L936,-181L941,-181L949,-181L951,-181L943,-181L939,-181L933,-181L936,-181L948,-181L941,-181L938,-181L941,-181L937,-181L945,-181L961,-181L967,-181L957,-181L955,-181L957,-181L955,-181L958,-181L966,-181L970,-181L962,-181L948,-181L944,-181L937,-181L934,-181L938,-181L944,-181L953,-181L969,-181L972,-181L978,-181L988,-181L997,-181L1002,-181L1013,-181L1019,-181L1014,-181L985,-181L982,-181L986,-181L995,-181L999,-181L978,-181L975,-181L964,-181L975,-181L984,-181L987,-181L992,-181L998,-181L1002,-181L1006,-181L1009,-181L1012,-181L1005,-181L1002,-181L1006,-181L998,-181L995,-181L999,-181L1004,-181L1000,-181L996,-181L993,-181L996,-181L987,-181L983,-181L980,-181L991,-181L996,-181L989,-181L977,-181L981,-181L989,-181L995,-181L987,-181L997,-181L1001,-181L1022,-181L1006,-181L1019,-181L1021,-181L1031,-181L1040,-181L1043,-181L1038,-181L1017,-181L1014,-181L1022,-181L1008,-181L989,-181L968,-181L963,-181L954,-181L938,-181L919,-181L900,-181L885,-181L876,-181L868,-181L864,-181L851,-181L831,-181L824,-181L818,-181L814,-181L824,-181L821,-181L826,-181L821,-181L824,-181L829,-181L822,-181L808,-181L803,-181L787,-181L779,-181L783,-181L789,-181L786,-181L794,-181L803,-181L791,-181L786,-181L775,-181L768,-181L775,-181L772,-181L775,-181L766,-181L757,-181L760,-181L768,-181L779,-181L775,-181L796,-181L801,-181L806,-181L810,-181L805,-181L808,-181L800,-181L812,-181L816,-181L825,-181L834,-181L837,-181L845,-181L849,-181L843,-181L846,-181L839,-181L843,-176L839,-175L844,-164L838,-160L836,-155L839,-145L845,-139L847,-147L846,-153L849,-155L855,-147L862,-146L862,-138L871,-131L878,-131L878,-135L881,-137L892,-131L894,-138L899,-146L920,-142L936,-129L936,-121L952,-111L952,-108L944,-104L945,-99L951,-94L952,-87L961,-97L972,-103L966,-113L968,-118L968,-124L971,-127L970,-131L972,-138L981,-141L980,-152L983,-161L975,-177L977,-181L983,-181L990,-181L993,-181L1007,-181L1010,-181L1016,-181L1012,-181L1023,-181L1026,-181L998,-181L990,-179L983,-169L986,-166L989,-168L992,-165L992,-162L987,-162L989,-160L991,-151L1009,-138L1010,-130L998,-133L1003,-127L1122,-127L1122,-74Z", "nb": "M955,-181L964,-181L950,-181L941,-181L954,-181L960,-181L953,-181L963,-181L958,-181L950,-181L937,-181L951,-181L960,-181L965,-181L962,-181L965,-181L952,-181L964,-181L957,-181L966,-181L974,-181L968,-181L977,-181L970,-181L976,-181L972,-181L980,-181L977,-181L972,-181L978,-181L990,-181L985,-181L980,-181L985,-181L988,-181L996,-181L989,-181L996,-181L1005,-181L1000,-181L988,-181L984,-181L1002,-181L1005,-181L1000,-181L1004,-181L1009,-181L1016,-181L1010,-181L1026,-181L1021,-181L1026,-181L1023,-181L1015,-181L1002,-181L992,-181L985,-181L994,-181L1017,-181L1026,-181L1041,-181L1038,-181L1028,-181L1035,-181L1030,-181L1038,-181L1035,-181L1039,-181L1029,-181L1039,-181L1044,-181L1049,-181L1046,-181L1053,-181L1046,-181L1057,-181L1054,-181L1038,-181L1022,-181L1017,-181L1025,-181L1028,-181L1013,-181L1033,-181L1043,-181L1040,-181L1046,-181L1061,-181L1064,-181L1074,-181L1070,-181L1057,-181L1055,-181L1059,-181L1070,-181L1074,-181L1069,-181L1044,-181L1048,-181L1036,-181L1041,-181L1028,-181L1041,-181L1043,-181L1059,-181L1066,-181L1070,-181L1075,-181L1078,-181L1082,-181L1077,-181L1081,-181L1087,-181L1084,-181L1086,-181L1089,-181L1086,-181L1078,-181L1069,-181L1082,-181L1085,-181L1089,-181L1093,-181L1097,-181L1102,-181L1106,-181L1101,-181L1110,-181L1113,-181L1116,-181L1107,-181L1101,-181L1093,-181L1089,-181L1077,-181L1087,-181L1100,-181L1116,-181L1122,-181L1115,-181L1118,-181L1109,-181L1116,-181L1119,-181L1122,-181L1115,-181L1119,-181L1122,-181L1114,-181L1110,-181L1079,-181L1093,-181L1107,-181L1077,-181L1074,-181L1079,-181L1115,-181L1096,-181L1113,-181L1122,-181L1107,-181L1113,-181L1101,-181L1111,-181L1114,-181L1122,-181L1119,-181L1122,-181L1117,-181L1105,-181L1115,-181L1122,-181L1122,-178L1122,-176L1122,-181L1122,-175L1122,-172L1122,-169L1122,-166L1122,-160L1122,-157L1122,-166L1122,-156L1122,-154L1122,-148L1122,-146L1122,-143L1122,-140L1122,-136L1122,-131L1122,-127L1122,-123L1122,-121L1122,-114L1122,-108L1122,-104L1122,-99L1122,-94L1122,-89L1122,-84L1122,-81L1122,-75L1122,-127L1003,-127L998,-133L1010,-130L1009,-138L991,-151L989,-160L987,-162L992,-162L992,-165L989,-168L986,-166L983,-169L990,-179L998,-181L1026,-181L1023,-181L1012,-181L1016,-181L1011,-181L1007,-181L992,-181L989,-181L983,-181L977,-181L975,-177L983,-161L980,-152L981,-141L972,-138L970,-131L971,-127L968,-124L968,-118L966,-113L972,-103L961,-97L952,-87L951,-94L945,-99L944,-104L952,-108L952,-111L936,-121L936,-129L920,-142L899,-146L894,-138L892,-131L881,-137L878,-135L878,-131L871,-131L862,-138L862,-146L855,-147L849,-155L846,-153L847,-147L845,-139L839,-145L836,-155L838,-160L844,-164L839,-175L843,-176L839,-181L846,-181L843,-181L849,-181L845,-181L837,-181L834,-181L826,-181L816,-181L813,-181L801,-181L806,-181L810,-181L806,-181L801,-181L797,-181L775,-181L779,-181L769,-181L760,-181L757,-181L766,-181L775,-181L772,-181L775,-181L769,-181L766,-181L775,-181L786,-181L791,-181L803,-181L792,-181L786,-181L789,-181L783,-181L777,-181L788,-181L803,-181L808,-181L821,-181L823,-181L829,-181L824,-181L821,-181L826,-181L819,-181L824,-181L814,-181L818,-181L824,-181L831,-181L851,-181L864,-181L868,-181L874,-181L885,-181L900,-181L919,-181L938,-181L954,-181L963,-181L968,-181L989,-181L1008,-181L1022,-181L1014,-181L1017,-181L1038,-181L1043,-181L1038,-181L1031,-181L1021,-181L1019,-181L1005,-181L1022,-181L1001,-181L995,-181L987,-181L995,-181L989,-181L983,-181L979,-181L989,-181L996,-181L991,-181L980,-181L983,-181L988,-181L996,-181L993,-181L996,-181L1001,-181L1004,-181L999,-181L997,-181L1006,-181L1002,-181L1005,-181L1012,-181L1009,-181L1006,-181L1002,-181L998,-181L994,-181L987,-181L984,-181L975,-181L961,-181L975,-181L978,-181L999,-181L995,-181L986,-181L983,-181L1014,-181L1019,-181L1013,-181L1002,-181L997,-181L988,-181L978,-181L972,-181L969,-181L953,-181L944,-181L938,-181L934,-181L937,-181L944,-181L948,-181L962,-181L970,-181L966,-181L958,-181L955,-181L958,-181L967,-181L961,-181L945,-181L937,-181L941,-181L938,-181L942,-181L947,-181L936,-181L933,-181L939,-181L945,-181L951,-181L949,-181L941,-181L936,-181L955,-181ZM958,243L956,251L951,258L948,260L946,258L948,255L945,252L947,248L951,246L955,248L958,243ZM681,299L709,288L721,276L721,267L721,242L737,242L737,235L768,236L768,241L783,250L785,245L793,246L802,242L808,245L808,239L814,236L820,237L844,229L845,234L878,245L888,265L886,267L888,270L890,266L898,264L912,253L924,250L928,250L922,256L938,253L940,256L936,259L940,259L941,262L943,257L947,260L938,265L938,271L933,276L933,280L931,285L935,282L934,287L932,294L933,291L930,292L929,300L904,318L914,318L914,322L925,318L928,321L931,319L939,319L937,322L939,327L934,332L933,340L935,346L940,351L936,353L936,356L938,354L942,357L942,353L944,355L944,364L947,371L944,373L950,380L949,386L945,387L952,387L954,384L956,388L953,391L954,397L956,395L972,396L978,399L979,403L981,400L983,403L984,400L990,400L1001,406L993,412L984,411L982,415L985,417L978,420L971,432L966,428L967,429L958,442L955,442L958,435L955,426L954,429L953,427L946,417L946,412L942,409L945,414L945,417L953,429L947,439L949,442L946,442L940,452L933,450L926,458L907,466L882,485L878,484L871,489L866,487L863,481L858,480L865,473L866,466L860,475L854,477L857,482L862,484L853,493L851,488L846,489L850,490L851,493L845,494L839,501L836,494L826,500L822,499L820,502L817,502L818,498L812,502L811,497L814,495L808,490L806,493L803,492L803,499L797,493L797,487L794,485L796,496L795,493L788,491L784,496L778,490L776,482L779,473L774,463L779,462L778,454L767,453L761,446L759,448L756,446L756,435L759,432L756,428L759,424L757,422L757,321L730,294L723,294L720,300L712,299L689,310L681,303L681,299ZM819,525L821,532L819,537L811,542L813,531L819,525ZM985,417L993,419L1000,427L1005,429L1003,432L1007,430L1008,434L1008,428L1019,428L1024,430L1019,430L1023,433L1017,434L1034,434L1026,438L1031,442L1037,437L1037,441L1045,439L1042,434L1069,438L1064,439L1071,443L1062,447L1062,450L1064,448L1064,452L1067,448L1070,450L1069,447L1073,445L1081,448L1079,452L1080,453L1088,446L1084,446L1094,443L1115,427L1117,445L1122,451L1122,446L1122,458L1122,462L1122,467L1122,474L1122,477L1122,483L1122,487L1122,483L1122,489L1122,485L1122,488L1122,492L1122,494L1122,491L1122,496L1122,500L1121,498L1121,501L1118,501L1120,503L1117,505L1114,503L1107,507L1111,509L1095,511L1089,515L1089,517L1087,515L1082,523L1081,517L1078,521L1076,520L1077,526L1072,522L1070,526L1061,527L1059,531L1061,532L1059,534L1053,531L1049,534L1049,529L1045,528L1048,534L1045,537L1042,527L1040,536L1039,532L1036,537L1034,532L1034,537L1032,541L1024,540L1024,536L1021,537L1024,541L1022,544L1009,533L1010,537L1014,541L1017,552L1014,556L1012,554L1010,558L1010,555L1005,557L1002,553L1000,555L1001,550L996,554L992,551L992,542L995,535L984,540L984,544L987,551L985,551L983,556L980,554L980,549L977,545L974,550L969,547L968,555L970,556L966,558L968,561L972,561L969,564L975,565L967,566L967,568L972,569L970,571L973,571L972,574L968,574L962,567L966,572L966,575L962,577L958,585L951,584L950,586L955,587L954,591L944,593L947,596L947,599L936,605L940,610L938,610L937,614L932,609L934,613L933,616L929,609L931,616L929,620L924,614L926,621L925,624L922,625L922,620L919,626L918,626L918,621L916,625L912,616L911,619L913,624L909,628L907,625L907,619L906,622L907,627L905,634L906,639L899,634L902,643L899,638L897,642L897,646L892,637L887,644L883,643L882,637L881,639L879,637L880,626L878,633L877,631L874,616L873,619L870,614L868,618L867,612L868,622L865,626L864,621L862,624L861,619L858,621L858,616L859,612L857,614L856,610L857,597L853,589L858,577L859,567L876,546L869,546L854,563L854,560L860,553L879,535L881,543L885,542L901,528L883,537L881,537L882,534L935,495L961,484L964,480L958,477L968,480L965,489L966,492L964,494L966,499L968,495L973,496L978,502L978,509L981,508L982,502L976,497L978,490L997,483L1001,479L1016,477L1020,481L1020,478L1027,475L1003,471L995,476L992,472L984,470L964,474L953,470L945,474L945,478L941,481L941,478L938,476L931,478L932,469L960,446L961,440L965,436L970,433L967,440L972,438L969,437L971,432L978,420L985,417ZM988,381L980,379L981,376L981,368L984,365L983,359L980,363L974,360L964,361L962,355L974,335L988,321L990,336L982,346L984,349L989,349L989,352L995,358L994,362L998,361L998,364L992,374L998,370L999,372L998,375L1006,377L1006,375L1004,372L1006,370L1005,368L1009,365L1019,369L1018,373L1021,375L1023,372L1021,371L1029,372L1034,381L1036,378L1074,378L1068,375L1081,373L1100,373L1112,375L1099,385L1092,383L1093,386L1088,385L1089,389L1085,389L1088,391L1087,393L1080,392L1083,394L1084,397L1074,396L1079,400L1074,398L1075,400L1073,401L1077,402L1077,406L1081,406L1078,404L1081,403L1083,409L1075,414L1082,416L1064,421L1056,417L1053,413L1055,411L1047,411L1054,408L1057,405L1056,403L1051,405L1052,400L1050,399L1041,398L1051,388L1041,395L1037,392L1038,396L1032,399L1035,400L1038,398L1040,400L1033,404L1019,397L1013,398L1006,394L999,387L1001,386L1000,383L1005,385L1002,382L1003,381L995,381L992,378L988,381ZM40,-78L40,-54L40,-35L35,-39L32,-41L27,-53L32,-63L31,-73L40,-78ZM40,-32L41,166L42,181L42,275L38,286L46,302L46,316L55,332L64,343L76,370L88,380L91,386L154,400L161,403L175,414L178,422L183,428L195,436L200,434L201,427L207,429L208,438L213,443L215,454L219,457L236,466L245,460L251,461L265,474L289,460L325,449L339,450L354,456L349,479L358,489L352,494L347,501L333,508L319,512L297,525L271,551L258,563L225,577L214,578L196,591L191,590L202,582L192,586L194,579L161,587L160,591L176,584L176,590L190,582L187,595L194,594L199,592L204,587L193,603L204,603L187,611L181,609L185,602L178,606L175,602L180,601L166,603L160,598L162,596L152,594L150,596L154,598L146,596L68,614L51,630L45,630L37,637L26,660L30,666L52,672L69,664L69,679L68,681L71,683L71,688L78,697L67,703L45,700L-0,707L-15,707L5,707L-20,707L-44,707L-69,707L-97,707L-101,707L-103,707L-101,707L-105,707L-114,707L-122,707L-122,698L-122,691L-120,682L-94,657L-91,644L-94,590L-86,578L-84,567L-73,558L-65,542L-70,510L-75,509L-85,494L-84,490L-93,488L-91,483L-66,485L-69,493L-65,498L-64,507L-56,511L-58,515L-46,511L-57,529L-49,525L-42,526L-45,544L-37,534L-27,532L-23,542L7,556L12,548L13,536L5,530L6,524L15,520L20,528L33,530L29,527L32,518L28,520L28,525L25,524L23,513L17,512L16,506L6,496L13,494L4,486L10,479L9,473L4,470L0,473L2,477L-2,476L-8,468L-9,473L-12,452L-18,456L-33,424L-51,421L-58,423L-59,415L-64,421L-79,419L-79,415L-90,422L-84,417L-88,415L-80,413L-92,415L-82,411L-87,406L-94,411L-95,416L-96,411L-92,407L-118,406L-122,402L-122,400L-122,402L-122,397L-122,401L-122,390L-122,386L-122,383L-122,371L-122,369L-122,371L-122,365L-122,354L-122,348L-122,353L-122,342L-122,337L-122,332L-122,335L-122,328L-122,306L-122,300L-122,293L-122,271L-122,264L-122,261L-122,255L-122,249L-122,240L-122,237L-122,214L-122,183L-122,165L-122,169L-122,162L-122,168L-122,162L-122,165L-122,159L-122,155L-122,149L-122,143L-122,148L-122,146L-122,157L-122,164L-122,171L-122,181L-122,178L-122,181L-122,176L-122,183L-122,187L-122,184L-122,193L-122,197L-122,191L-122,186L-122,174L-122,167L-122,160L-122,166L-122,171L-122,177L-122,188L-122,202L-122,207L-122,183L-122,192L-122,200L-122,206L-122,225L-122,235L-122,233L-122,236L-122,233L-122,228L-122,225L-122,228L-122,213L-122,218L-122,228L-122,232L-122,226L-122,218L-122,213L-122,203L-122,209L-122,213L-122,203L-122,199L-122,196L-122,191L-122,187L-122,179L-122,182L-122,186L-122,189L-122,179L-122,176L-122,171L-122,165L-122,156L-122,115L-122,111L-122,104L-122,93L-122,-181L-118,-181L-122,-181L-117,-181L-122,-181L-116,-181L-108,-181L-105,-181L-83,-168L-83,-159L-78,-154L-83,-156L-94,-150L-99,-150L-103,-144L-95,-149L-79,-148L-70,-136L-48,-128L-43,-117L-38,-116L-24,-101L-19,-84L-14,-78L-14,-69L-18,-67L-28,-61L-34,-52L-39,-50L-50,-39L-45,-41L-45,-37L-40,-47L-30,-50L-20,-62L-12,-67L12,-59L28,-47L31,-40L40,-32Z", "cities": {"Rouyn-Noranda": [72.0, 213.8], "Qu\u00e9bec": [545.7, 343.4], "Saguenay": [557.9, 197.5], "Rimouski": [712.2, 194.8], "Trois-Rivi\u00e8res": [464.6, 385.1], "Montr\u00e9al": [403.7, 462.1], "Sherbrooke": [504.3, 472.9], "Gatineau": [272.0, 469.3]}};
+const TH={
+  ENV:{n:"Environnement, climat et ressources",c:"--c-env",d:"Changements climatiques, contaminants, catastrophes, mines, forêt, eau, One Health et écosanté."},
+  ALI:{n:"Systèmes alimentaires",c:"--c-ali",d:"Sécurité et souveraineté alimentaires, chaînes d'approvisionnement locales, environnements alimentaires."},
+  GOU:{n:"Gouvernance et action publique territoriale",c:"--c-gou",d:"Politiques publiques, gouvernance territoriale et municipale, intersectorialité, proximité."},
+  SER:{n:"Organisation des soins et services",c:"--c-ser",d:"Accès, première ligne, urgences rurales, soins palliatifs, prévention des infections, trajectoires de soins."},
+  TRA:{n:"Travail et organisations",c:"--c-tra",d:"Santé et sécurité du travail, ergonomie, travail saisonnier, gestion du changement."},
+  CLI:{n:"Santé clinique et maladies chroniques",c:"--c-cli",d:"Maladies chroniques, santé métabolique, santé mentale, sommeil, réadaptation, périnatalité."},
+  PAR:{n:"Participation et savoirs expérientiels",c:"--c-par",d:"Partenariat citoyen et patient, recherche participative, savoirs d'expérience."},
+  OUT:{n:"Outils et méthodes",c:"--c-out",d:"Intelligence artificielle, design de services, modélisation spatiale, santé numérique, ingénierie pédagogique."}
+};
+const NODES=[
+ {id:"F1",col:0,n:"Changements climatiques et environnementaux"},
+ {id:"F2",col:0,n:"Exploitation des ressources naturelles"},
+ {id:"F3",col:0,n:"Crises et catastrophes"},
+ {id:"F4",col:0,n:"Réformes et transformation des services"},
+ {id:"F5",col:0,n:"Recomposition économique et chaînes d'approvisionnement"},
+ {id:"S1",col:1,n:"Système agroalimentaire"},
+ {id:"S2",col:1,n:"Soins et services"},
+ {id:"S3",col:1,n:"Travail et économie locale"},
+ {id:"S4",col:1,n:"Territoire et action publique"},
+ {id:"S5",col:1,n:"Santé et habitudes de vie"},
+ {id:"S6",col:1,n:"Écosystèmes et milieux de vie"},
+ {id:"L1",col:2,n:"Collaboration intersectorielle et gouvernance"},
+ {id:"L2",col:2,n:"Participation citoyenne et savoirs expérientiels"},
+ {id:"L3",col:2,n:"Implantation et organisations apprenantes"},
+ {id:"L4",col:2,n:"Outils numériques, données et modélisation"},
+ {id:"L5",col:2,n:"Approches autochtones et souveraineté"},
+ {id:"R1",col:3,n:"Réduction des iniquités"},
+ {id:"R2",col:3,n:"Accès aux soins en régions rurales et éloignées"},
+ {id:"R3",col:3,n:"Capacité collective d'agir et résilience"}
+];
+const COLS=["FORCES DE CHANGEMENT","SYSTÈMES TOUCHÉS","LEVIERS D'ADAPTATION","RETOMBÉES VISÉES"];
+const COLK=["--k-f","--k-s","--k-l","--k-r"];
+const INST_CITY={"UQAT":"Rouyn-Noranda","Université Laval":"Québec","INRS":"Québec","UQAC":"Saguenay","UQAR":"Rimouski","UQTR":"Trois-Rivières","Université de Montréal":"Montréal","UQAM":"Montréal","Université de Sherbrooke":"Sherbrooke","ENAP":"Québec","TÉLUQ":"Québec","ÉTS":"Montréal","IRSST":"Montréal","UQO":"Gatineau","Concordia":"Montréal","McGill":"Montréal","CISSS du Bas-Saint-Laurent":"Rimouski"};
+// [nom, établissement, statut, nb d'axes, thèmes, mots-clés, éléments du système]
+const M=[
+["Frédérique Beauchamp","UQAT","Clinicienne",3,["SER"],"Soins aigus en psychiatrie, santé mentale et dépendance, CISSS de l'Abitibi-Témiscamingue",["S2"]],
+["Luc Bergeron","Université Laval","Clinicien",1,["SER","CLI"],"Usage optimal et sécurité des antimicrobiens",["S2"]],
+["Emmanuelle Bouchard-Bastien","INRS","Universitaire",2,["ENV","PAR"],"Anthropologie de l'environnement et des catastrophes, participation citoyenne, santé environnementale",["F1","F3","S6","L2","R3"]],
+["Maude Bouchard","UQAC","Universitaire",3,["CLI"],"Sommeil, santé des femmes, santé circadienne",["S5"]],
+["Geneviève Brisson","UQAR","Universitaire",2,["ENV","PAR","GOU"],"Catastrophes, impacts sociaux, évaluation environnementale, mines, changements climatiques, territoire, ruralité",["F1","F2","F3","S4","L2"]],
+["André Bussières","UQTR","Universitaire",3,["SER"],"Troubles musculosquelettiques, sciences de l'implantation, approches participatives",["S2","L3"]],
+["Alicia Buyse","UQAR","Milieu de pratique",3,["PAR","GOU","SER"],"Innovation dans le secteur public, collaborations intersectorielles, partenariat citoyen",["F4","S2","L1","L2","R3"]],
+["Marilyne Chicoine","INRS","Universitaire",3,["ALI"],"Chaînes d'approvisionnement locales, dynamiques de proximité, systèmes agroalimentaires durables, sécurité alimentaire",["F5","S1","S3"]],
+["Adèle Coriati","Université de Montréal","Universitaire",1,["CLI"],"Fibrose kystique, diabète, nutrition, maladies chroniques",["S5"]],
+["Nancy Côté","Université Laval","Universitaire",2,["SER","GOU"],"Innovations sociales, transformation de la première ligne, gouvernance collaborative, collaboration intersectorielle",["F4","S2","L1","L3"]],
+["Frédérique Daigle","Université de Sherbrooke","Universitaire",3,["CLI"],"Physiothérapie cardiorespiratoire, réadaptation, douleur chronique",["S5","S2"]],
+["Louis Demers","ENAP","Universitaire",1,["GOU","SER"],"Résidences privées pour aînés",["F4","S2","S4"]],
+["Julien Déry","UQTR","Universitaire",2,["SER"],"Organisation des services, réadaptation, accès aux services, enjeux éthiques",["S2","R2"]],
+["Jean-Sébastien Dessureault","UQTR","Universitaire",5,["OUT"],"Intelligence artificielle, grands modèles de langage, explicabilité",["L4"]],
+["Émilie Dionne","Université Laval","Établissement gouvernemental",3,["SER"],"Première ligne, déterminants sociaux et environnementaux dans les soins, implantation, intersectionnalité",["F4","S2","L3","R1"]],
+["Alexandra Dubé-Loubert","CISSS du Bas-Saint-Laurent","Clinicienne",5,["SER"],"Recherche en région, trajectoires de soins, proche-aidance, maintien à domicile",["S2","R2"]],
+["Richard Fleet","Université Laval","Universitaire",2,["SER"],"Accès aux soins, soins préhospitaliers d'urgence, urgences rurales",["S2","R2"]],
+["Stéphanie Girard","UQTR","Universitaire",3,["CLI"],"Activité physique, éducation physique, inclusion, enfance et adolescence",["S5","R1"]],
+["Anne Renée Gravel","TÉLUQ","Universitaire",4,["TRA"],"Santé des femmes, travail, santé et sécurité du travail",["S3"]],
+["Lorenz Herfurth","ÉTS","Universitaire",3,["OUT","PAR"],"Design de services, design collaboratif, transformation par le design",["S2","L2","L3","L4"]],
+["Caroline Jolly","IRSST","Universitaire",2,["TRA"],"Activité de travail, petites entreprises, santé et sécurité du travail",["F5","S3"]],
+["Tiff-Annie Kenny","Université de Montréal","Universitaire",3,["ALI"],"Sécurité alimentaire, nutrition publique, santé autochtone",["S1","S5","L5","R1"]],
+["Audrey L'Espérance","ENAP","Universitaire",2,["PAR","GOU"],"Participation citoyenne, partenariat avec patients et citoyens, politique de santé",["S2","L2","L3"]],
+["Marie Laberge","Université de Montréal","Universitaire",2,["TRA"],"Prévention de l'incapacité de travail, ergonomie, ACS+",["S3","R1"]],
+["Martin Lauzier","UQO","Universitaire",1,["TRA"],"Psychologie du travail, gestion du changement, apprentissage organisationnel",["F4","S3","L3"]],
+["Madeleine Lefebvre","UQAT","Universitaire",2,["GOU"],"Développement collectif, politique municipale, concertation",["S4","L1","R3"]],
+["Mélanie Lemire","Université Laval","Universitaire",3,["ALI","ENV"],"Contaminants, systèmes alimentaires autochtones et côtiers, souveraineté alimentaire, changements climatiques",["F1","S1","S6","L5","R1"]],
+["Lily Lessard","UQAR","Universitaire",5,["SER","ENV"],"Régions rurales et éloignées, théories systémiques, changements climatiques, crises, eau potable",["F1","F3","S2","S6","L3","R2"]],
+["Nathalie Lewis","UQAR","Universitaire",1,["ENV","GOU"],"Sociologie de l'environnement, milieux forestiers, gestion de l'eau, développement territorial",["F2","S4","S6","L2"]],
+["Lara Maillet","ENAP","Universitaire",3,["GOU","SER"],"Complexité, gouvernance, intersectorialité, proximité, inégalités sociales de santé",["S2","S4","L1","R1"]],
+["Marie-Eve Major","Université Laval","Universitaire",3,["TRA","ENV"],"Ergonomie, travail saisonnier, régions éloignées, transition socio-écologique",["F1","F5","S3"]],
+["Emmanuel Marier-Tétrault","UQTR","Universitaire",4,["CLI","OUT"],"Santé métabolique, santé numérique, diabète",["S5","L4"]],
+["Patrik Marier","Concordia","Universitaire",3,["GOU"],"Politiques publiques du vieillissement, soutien à domicile, gouvernance",["F4","S2","S4","L1"]],
+["Geneviève McCready","UQAR","Universitaire",2,["PAR","GOU"],"Promotion de la santé, action politique en santé, recherche participative",["S4","L2","R3"]],
+["Samir Méchaï","INRS","Universitaire",5,["ENV","OUT"],"One Health en milieu rural, maladies vectorielles, changements climatiques, modélisation spatiale",["F1","S6","L4"]],
+["Nancy Michaud","UQAR","Universitaire",2,["PAR","SER"],"Gouvernance des services, savoirs d'expérience, recherche participative",["S2","L2"]],
+["Elisa Mileto","Université de Sherbrooke","Clinicienne",3,["SER"],"Urgence, soins critiques, transferts interhospitaliers",["S2","R2"]],
+["Nolwenn Noisel","Université de Montréal","Universitaire",1,["ENV"],"Santé environnementale, inégalités environnementales, changements climatiques, biosurveillance",["F1","S6","R1"]],
+["Romina Pace","McGill","Universitaire",2,["CLI"],"Diabète, jeunes autochtones, soutien par les pairs",["S5","L5","R3"]],
+["Maude Perreault","Université de Montréal","Universitaire",4,["ALI"],"Nutrition, littératie alimentaire, déterminants sociaux, équité",["S1","S5","R1"]],
+["Josiane Provost","Université de Sherbrooke","Autre statut en recherche",3,["SER","OUT"],"Accessibilité et qualité des soins, épidémiologie, santé numérique",["S2","L4","R2"]],
+["Olivier Riffon","UQAC","Universitaire",2,["GOU","PAR","ENV"],"Transition socioécologique, gouvernance territoriale, participation citoyenne, intersectorialité",["F1","S4","L1","L2","R3"]],
+["Eric Robitaille","Université de Montréal","Universitaire",3,["GOU","ALI","OUT"],"Géographie de la santé, environnement bâti, déserts et marais alimentaires, aménagement du territoire, SIG",["F4","S1","S4","S6","L1","L4","R1"]],
+["Marie-Claude Rousseau","INRS","Universitaire",1,["CLI"],"Épidémiologie, maladies inflammatoires et auto-immunes, asthme, cancer, COVID-19, diabète",["F3","S5"]],
+["Marie-Pier Roussel","UQTR","Universitaire",4,["CLI"],"Maladies neuromusculaires, muscle squelettique, évaluation fonctionnelle",["S5"]],
+["Fatiha Sadat","UQAM","Universitaire",3,["OUT"],"Apprentissage machine, intelligence artificielle, langues autochtones, traitement automatique du langage",["L4","L5"]],
+["Johanne Saint-Charles","UQAM","Universitaire",2,["ENV","PAR"],"Communication et discours, approches écosystémiques de la santé (écosanté, une seule santé), équité sociale et de genre",["S6","L2","R1"]],
+["Isabelle Savard","TÉLUQ","Universitaire",4,["OUT","SER"],"Ingénierie pédagogique, santé numérique, développement de compétences, collaboration interprofessionnelle",["S2","L3","L4"]],
+["Diane Tapp","Université Laval","Universitaire",3,["SER"],"Soins palliatifs et de fin de vie, inégalités d'accès aux soins, vulnérabilité sociale et territoriale, innovation sociale",["S2","R1","R2"]],
+["Eric Tchouaket","UQO","Universitaire",3,["SER"],"Économie de la santé, prévention et contrôle des infections, qualité et sécurité des soins, organisation des services",["S2","L3"]],
+["Daniel Thirion","Université de Montréal","Clinicien",1,["SER","CLI"],"Pharmacothérapie des maladies infectieuses, résistance aux antimicrobiens, parrainage des antimicrobiens",["S2"]],
+["Nassera Touati","ENAP","Universitaire",3,["GOU","SER"],"Actions intersectorielles, gouvernance, évaluation, itinérance, maladies chroniques, pratiques de proximité",["S4","L1","R1"]],
+["Benoît Tousignant","Université de Montréal","Universitaire",1,["CLI"],"Optométrie, santé publique, gériatrie",["S5"]],
+["Cathy Vaillancourt","INRS","Universitaire",4,["CLI","ENV"],"Grossesse, développement fœtal, stress prénatal, toxines, ruralité, facteurs environnementaux",["S5","S6"]],
+["Chantal Verdon","UQO","Universitaire",5,["SER"],"Deuils complexes, deuil prolongé, accompagnement familial, soins palliatifs",["S2"]],
+["Dennis Wendt","McGill","Universitaire",3,["CLI"],"Santé mentale des peuples autochtones, toxicomanie, recherche qualitative",["S5","L5"]]
+];
+
+const $=s=>document.querySelector(s);
+const NODE=Object.fromEntries(NODES.map(n=>[n.id,n]));
+const col=k=>`var(${TH[k].c})`;
+const cityOf=m=>INST_CITY[m[1]];
+const shared=(a,b)=>a[6].filter(x=>b[6].includes(x));
+const chip=m=>`<button class="chip" data-n="${m[0]}">${m[0]}</button>`;
+
+const PAIRS=[];
+for(let i=0;i<M.length;i++)for(let j=i+1;j<M.length;j++){const s=shared(M[i],M[j]); if(s.length>=2) PAIRS.push([M[i],M[j],s])}
+$("#n-axe").textContent=M.length;
+$("#s-n").textContent=M.length;
+$("#s-inst").textContent=new Set(M.map(m=>m[1])).size;
+$("#s-pairs").textContent=PAIRS.length;
+$("#s-prac").textContent=M.filter(m=>m[2]!=="Universitaire").length;
+
+/* ---------- Carte systémique ---------- */
+const H=560,NW=200,NH=46,X=[20,275,530,780];
+const byCol=[0,1,2,3].map(c=>NODES.filter(n=>n.col===c));
+byCol.forEach((list,c)=>{const gap=(H-60-list.length*NH)/(list.length+1);
+  list.forEach((n,i)=>{n.x=X[c];n.y=50+gap*(i+1)+NH*i;n.members=M.filter(m=>m[6].includes(n.id))})});
+const EDGES=[];
+for(let c=0;c<3;c++) byCol[c].forEach(a=>byCol[c+1].forEach(b=>{
+  const w=M.filter(m=>m[6].includes(a.id)&&m[6].includes(b.id));
+  if(w.length) EDGES.push({a,b,w});
+}));
+function wrapText(t,max){const words=t.split(" ");const lines=[];let cur="";
+  words.forEach(w=>{if((cur+" "+w).trim().length>max){lines.push(cur.trim());cur=w}else cur+=" "+w});
+  lines.push(cur.trim()); return lines.slice(0,2)}
+const svg=$("#sysmap");
+let g="";
+COLS.forEach((t,c)=>g+=`<text class="colhead" x="${X[c]}" y="28">${t}</text>`);
+EDGES.forEach((e,i)=>{const x1=e.a.x+NW,y1=e.a.y+NH/2,x2=e.b.x,y2=e.b.y+NH/2,mx=(x1+x2)/2;
+  g+=`<path class="edge" data-i="${i}" d="M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}" stroke-width="${0.8+e.w.length*1.2}" stroke-opacity=".45"/>`});
+NODES.forEach(n=>{const lines=wrapText(n.n,30);
+  g+=`<g class="node" tabindex="0" role="button" data-id="${n.id}" style="--nc:var(${COLK[n.col]})">
+  <rect x="${n.x}" y="${n.y}" width="${NW}" height="${NH}" rx="6"/>
+  ${lines.map((l,i)=>`<text x="${n.x+10}" y="${n.y+(lines.length===1?28:20)+i*15}">${l}</text>`).join("")}
+  <text class="num" x="${n.x+NW-8}" y="${n.y+14}" text-anchor="end">${n.members.length}</text></g>`});
+svg.innerHTML=g;
+
+function highlight(nodeIds,edgeFilter){
+  svg.querySelectorAll(".node").forEach(el=>{const on=nodeIds.includes(el.dataset.id);el.classList.toggle("on",on);el.classList.toggle("dim",nodeIds.length>0&&!on)});
+  svg.querySelectorAll(".edge").forEach(el=>{const e=EDGES[el.dataset.i];const on=edgeFilter(e);el.classList.toggle("on",on);el.classList.toggle("dim",nodeIds.length>0&&!on)});
+}
+function idle(){
+  highlight([],()=>false);
+  $("#panel").innerHTML=`<h3>Lire la carte</h3>
+  <p class="sub">Chaque boîte est un élément du système. Le chiffre indique combien de membres y travaillent. Deux éléments sont reliés quand des membres travaillent sur les deux à la fois.</p>
+  <p class="sub">Cliquez un élément pour voir qui le porte, ou un membre pour voir ses liens avec les autres.</p>
+  <div class="people">${M.map(chip).join("")}</div>`;
+}
+function showNode(id){
+  const n=NODE[id];
+  highlight([id,...new Set(EDGES.filter(e=>e.a.id===id||e.b.id===id).flatMap(e=>[e.a.id,e.b.id]))],e=>e.a.id===id||e.b.id===id);
+  const nb=EDGES.filter(e=>e.a.id===id||e.b.id===id).map(e=>[e.a.id===id?e.b:e.a,e.w.length]).sort((a,b)=>b[1]-a[1]);
+  $("#panel").innerHTML=`<button class="reset" data-reset="1">Tout afficher</button>
+  <div class="eyebrow">${COLS[n.col]}</div><h3>${n.n}</h3>
+  <p class="sub">${n.members.length} membre${n.members.length>1?"s":""} y travaillent.</p>
+  <div class="people">${n.members.map(chip).join("")}</div>
+  ${nb.length?`<h3 style="font-size:1rem">Éléments reliés</h3><ul class="links">${nb.map(([o,w])=>`<li><span>${o.n}</span><span>${w} membre${w>1?"s":""}</span></li>`).join("")}</ul>`:""}`;
+}
+function showMember(name){
+  const m=M.find(x=>x[0]===name); if(!m) return;
+  highlight(m[6],e=>m[6].includes(e.a.id)&&m[6].includes(e.b.id));
+  const near=M.filter(o=>o!==m).map(o=>[o,shared(m,o)]).filter(x=>x[1].length>=2).sort((a,b)=>b[1].length-a[1].length).slice(0,8);
+  $("#panel").innerHTML=`<button class="reset" data-reset="1">Tout afficher</button>
+  <div class="eyebrow">${m[1]} · ${m[2]}</div><h3>${m[0]}</h3>
+  <p class="sub">${m[5]}</p>
+  <h3 style="font-size:1rem">Liens tissés avec</h3>
+  ${near.length?`<ul class="links">${near.map(([o,s])=>`<li><span>${chip(o)}</span><span>${s.map(x=>NODE[x].n).join(", ")}</span></li>`).join("")}</ul>`:'<p class="sub">Aucun membre ne partage deux éléments ou plus avec ce profil.</p>'}`;
+}
+svg.addEventListener("click",e=>{const el=e.target.closest(".node"); if(el) showNode(el.dataset.id)});
+svg.addEventListener("keydown",e=>{const el=e.target.closest(".node"); if(el&&(e.key==="Enter"||e.key===" ")){e.preventDefault();showNode(el.dataset.id)}});
+$("#panel").addEventListener("click",e=>{const b=e.target.closest("button"); if(!b) return; if(b.dataset.reset) idle(); else if(b.dataset.n) showMember(b.dataset.n)});
+idle();
+
+const topPairs=PAIRS.filter(p=>p[0][1]!==p[1][1]).sort((a,b)=>b[2].length-a[2].length).slice(0,9);
+$("#bridges").innerHTML=topPairs.map(p=>`<div class="bridge"><b>${p[0][0]} et ${p[1][0]}</b><span>${p[2].map(x=>NODE[x].n).join(" · ")}</span></div>`).join("");
+
+/* ---------- Ports d'attache ---------- */
+const counts={}; M.forEach(m=>{const c=cityOf(m); counts[c]=(counts[c]||0)+1});
+const pm=$("#portmap");
+const LBL={"Rouyn-Noranda":[0,-1],"Québec":[1,0],"Saguenay":[0,-1],"Rimouski":[0,-1],"Trois-Rivières":[-1,0],"Montréal":[-1,0],"Sherbrooke":[1,0],"Gatineau":[0,-1]};
+let pg=`<rect x="0" y="0" width="1000" height="525" fill="var(--water)"/>
+<path class="land" d="${MAP.nb}" fill-rule="evenodd"/><path class="land qc" d="${MAP.qc}" fill-rule="evenodd"/>
+<text x="560" y="90" font-size="13" fill="var(--muted)" letter-spacing="3">QUÉBEC</text>
+<text x="640" y="320" font-size="11" fill="var(--muted)" letter-spacing="2">N.-B.</text>
+<text x="760" y="505" font-size="11" fill="var(--muted)" letter-spacing="2">ÉTATS-UNIS</text>`;
+Object.entries(counts).sort((a,b)=>b[1]-a[1]).forEach(([c,n])=>{
+  const [x,y]=MAP.cities[c], r=6+Math.sqrt(n)*6.5, [dx,dy]=LBL[c]||[0,-1];
+  const lx=dx===0?x:x+dx*(r+6), ly=dy===0?y+4:y+dy*(r+8), anchor=dx===0?"middle":(dx>0?"start":"end");
+  pg+=`<g class="port" tabindex="0" role="button" data-city="${c}"><title>${c} : ${n} membre${n>1?"s":""}</title>
+  <circle cx="${x}" cy="${y}" r="${r}"/><text class="n" x="${x}" y="${y+4}" text-anchor="middle">${n}</text>
+  <text class="lbl" x="${lx}" y="${ly}" text-anchor="${anchor}">${c}</text></g>`;
+});
+pm.innerHTML=pg;
+function portIdle(){
+  pm.querySelectorAll(".port").forEach(p=>p.classList.remove("on","dim"));
+  $("#ppanel").innerHTML=`<h3>Par ville d'attache</h3><ul class="links">${Object.entries(counts).sort((a,b)=>b[1]-a[1]).map(([c,n])=>`<li><span><button class="chip" data-city="${c}">${c}</button></span><span>${n} membre${n>1?"s":""}</span></li>`).join("")}</ul><p class="sub">Cliquez une ville pour voir ses établissements et ses membres.</p>`;
+}
+function showCity(c){
+  pm.querySelectorAll(".port").forEach(p=>{const on=p.dataset.city===c;p.classList.toggle("on",on);p.classList.toggle("dim",!on)});
+  const ms=M.filter(m=>cityOf(m)===c); const insts=[...new Set(ms.map(m=>m[1]))];
+  $("#ppanel").innerHTML=`<button class="reset" data-reset="1">Toutes les villes</button><h3>${c}</h3><p class="sub">${ms.length} membre${ms.length>1?"s":""} de l'axe.</p>
+  ${insts.map(i=>`<div class="inst"><b>${i}</b><div class="people">${ms.filter(m=>m[1]===i).map(m=>`<span class="chip" style="cursor:default">${m[0]}</span>`).join("")}</div></div>`).join("")}`;
+}
+pm.addEventListener("click",e=>{const p=e.target.closest(".port"); if(p) showCity(p.dataset.city)});
+pm.addEventListener("keydown",e=>{const p=e.target.closest(".port"); if(p&&(e.key==="Enter"||e.key===" ")){e.preventDefault();showCity(p.dataset.city)}});
+$("#ppanel").addEventListener("click",e=>{const b=e.target.closest("button"); if(!b) return; if(b.dataset.reset) portIdle(); else if(b.dataset.city) showCity(b.dataset.city)});
+portIdle();
+
+/* ---------- Thèmes ---------- */
+function show(name){
+  const m=M.find(x=>x[0]===name); if(!m) return;
+  const tags=m[4].map((k,i)=>`<span class="tag" style="--c:${col(k)}"><i></i>${TH[k].n}${i===0?"":" (secondaire)"}</span>`).join("");
+  $("#detail").innerHTML=`<h4>${m[0]}</h4><div class="meta">${m[1]} · ${cityOf(m)} · ${m[2]} · inscrit à ${m[3]} axe${m[3]>1?"s":""}</div><div>${tags}</div><div>${m[5]}</div>`;
+}
+const cl=$("#clusters");
+Object.entries(TH).forEach(([k,t])=>{
+  const prim=M.filter(m=>m[4][0]===k), sec=M.filter(m=>m[4].indexOf(k)>0);
+  const c=(m,s)=>`<button class="chip${s?" sec":""}" data-n="${m[0]}">${m[0]}</button>`;
+  const el=document.createElement("article"); el.className="cl"; el.style.setProperty("--c",col(k));
+  el.innerHTML=`<header><h3><span class="dot"></span>${t.n}</h3><span class="n">${prim.length} + ${sec.length}</span></header>
+  <p>${t.d}</p><div class="people">${prim.map(m=>c(m,false)).join("")}${sec.map(m=>c(m,true)).join("")}</div>`;
+  cl.appendChild(el);
+});
+cl.addEventListener("click",e=>{const b=e.target.closest(".chip"); if(b) show(b.dataset.n)});
+
+/* ---------- Répertoire ---------- */
+Object.entries(TH).forEach(([k,t])=>$("#f-th").insertAdjacentHTML("beforeend",`<option value="${k}">${t.n}</option>`));
+NODES.forEach(n=>$("#f-node").insertAdjacentHTML("beforeend",`<option value="${n.id}">${n.n}</option>`));
+Object.keys(counts).sort().forEach(c=>$("#f-city").insertAdjacentHTML("beforeend",`<option>${c}</option>`));
+function render(){
+  const q=$("#f-q").value.trim().toLowerCase(), th=$("#f-th").value, nd=$("#f-node").value, ci=$("#f-city").value;
+  const rows=M.filter(m=>(!th||m[4].includes(th))&&(!nd||m[6].includes(nd))&&(!ci||cityOf(m)===ci)&&(!q||(m.slice(0,6).join(" ")).toLowerCase().includes(q)));
+  $("#rows").innerHTML=rows.map(m=>`<tr><td><b>${m[0]}</b></td><td>${m[1]}<br><span class="count">${cityOf(m)}</span></td><td>${m[2]}</td>
+  <td>${m[4].map(k=>`<span class="tag" style="--c:${col(k)}"><i></i>${TH[k].n}</span>`).join("<br>")}</td><td style="font-variant-numeric:tabular-nums">${m[3]}</td><td class="kw">${m[5]}</td></tr>`).join("");
+  $("#f-count").textContent=`${rows.length} membre${rows.length>1?"s":""}`;
+}
+["#f-q","#f-th","#f-node","#f-city"].forEach(s=>$(s).addEventListener("input",render)); render();
+
+function select(v){
+  document.querySelectorAll(".tabs button").forEach(b=>b.setAttribute("aria-selected",b.dataset.view===v));
+  ["sys","ports","themes","rep"].forEach(x=>$("#v-"+x).hidden=x!==v);
+}
+document.querySelector(".tabs").addEventListener("click",e=>{const b=e.target.closest("button"); if(b) select(b.dataset.view)});
+</script>
+
+</body>
+</html>
